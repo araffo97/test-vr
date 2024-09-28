@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual AR Point Placement</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r125/examples/js/controls/DeviceOrientationControls.js"></script>
+    <script>
+        // Register a custom A-Frame component to handle touch-based point placement
+        AFRAME.registerComponent('place-point', {
+            init: function () {
+                const sceneEl = this.el.sceneEl;
+                this.el.addEventListener('click', (event) => {
+                    // Get the camera's current position and orientation
+                    const cameraEl = sceneEl.camera.el;
+                    const cameraPos = cameraEl.getAttribute('position');
+                    const cameraRot = cameraEl.getAttribute('rotation');
+
+                    // Place a new point based on the camera's position and forward direction
+                    const distance = 2; // Place 2 meters ahead of the user
+                    const radians = THREE.Math.degToRad(cameraRot.y); // Convert degrees to radians
+                    const pointPos = {
+                        x: cameraPos.x - distance * Math.sin(radians),
+                        y: cameraPos.y,
+                        z: cameraPos.z - distance * Math.cos(radians)
+                    };
+
+                    // Create a red sphere at the calculated position
+                    const point = document.createElement('a-sphere');
+                    point.setAttribute('position', pointPos);
+                    point.setAttribute('radius', '0.05');
+                    point.setAttribute('color', 'red');
+                    sceneEl.appendChild(point);
+
+                    // Dispatch a custom event to handle distance calculation
+                    sceneEl.emit('point-placed', pointPos);
+                });
+            }
+        });
+
+        // Store points and calculate distance
+        let points = [];
+        document.addEventListener('DOMContentLoaded', () => {
+            const sceneEl = document.querySelector('a-scene');
+
+            // Handle the custom event when a new point is placed
+            sceneEl.addEventListener('point-placed', (event) => {
+                const newPoint = event.detail; // Get the position of the newly placed point
+                points.push(newPoint); // Store the point
+
+                // If there are at least two points, calculate the distance
+                if (points.length >= 2) {
+                    const point1 = points[points.length - 2];
+                    const point2 = points[points.length - 1];
+                    const distance = calculateDistance(point1, point2);
+
+                    // Display the calculated distance
+                    document.getElementById('distanceDisplay').innerText = `Distance: ${distance.toFixed(2)} meters`;
+                }
+            });
+        });
+
+        // Function to calculate the 3D distance between two points
+        function calculateDistance(point1, point2) {
+            const dx = point2.x - point1.x;
+            const dy = point2.y - point1.y;
+            const dz = point2.z - point1.z;
+            return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            overflow: hidden;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #distanceDisplay {
+            font-size: 16px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- UI for displaying distance -->
+    <div id="ui">
+        <div id="distanceDisplay">Distance: 0 meters</div>
+    </div>
+
+    <!-- AR Scene using A-Frame and WebXR -->
+    <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false">
+        <!-- Enable manual point placement by clicking/tapping -->
+        <a-entity place-point></a-entity>
+
+        <!-- Camera to view the AR scene -->
+        <a-entity camera look-controls="enabled: true" position="0 1.6 0"></a-entity>
+    </a-scene>
+</body>
+</html>
